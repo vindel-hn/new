@@ -1,0 +1,168 @@
+<%- include('../parciales/encabezado', { rutaActual: '/inventario', usuario: usuario }) %>
+
+<div class="container-formulario-producto">
+    <!-- Controles de ventana -->
+    <div class="window-controls">
+        <button class="window-btn window-minimize" title="Minimizar"><i class="fas fa-window-minimize"></i></button>
+        <button class="window-btn window-close" title="Cerrar"><i class="fas fa-times"></i></button>
+    </div>
+
+    <h2 class="titulo-formulario"><i class="fas fa-file-invoice"></i> Nuevo Pedido</h2>
+    <form method="POST" action="/inventario/pedidos" class="formulario-producto">
+        <div class="grupo-campos">
+            <div class="campo-formulario">
+                <label for="numeroFactura"><i class="fas fa-receipt"></i> Número de Factura *</label>
+                <input type="text" id="numeroFactura" name="numeroFactura" required class="form-control">
+            </div>
+            <div class="campo-formulario">
+                <label for="proveedor"><i class="fas fa-truck"></i> Proveedor *</label>
+                <input type="text" id="proveedor" name="proveedor" required class="form-control">
+            </div>
+            <div class="campo-formulario">
+                <label for="fecha"><i class="fas fa-calendar"></i> Fecha *</label>
+                <input type="date" id="fecha" name="fecha" required class="form-control" value="<%= fechaActual %>">
+            </div>
+        </div>
+        <div class="grupo-campos">
+            <div class="campo-formulario">
+                <label for="subTotal"><i class="fas fa-money-bill"></i> Sub Total (LPS) *</label>
+                <input type="number" id="subTotal" name="subTotal" min="0" step="0.01" required class="form-control">
+            </div>
+            <div class="campo-formulario">
+                <label for="isv"><i class="fas fa-percentage"></i> ISV *</label>
+                <select id="isv" name="isv" required class="form-control">
+                    <option value="">Seleccione...</option>
+                    <option value="Exento">Exento</option>
+                    <option value="12%">12%</option>
+                    <option value="15%">15%</option>
+                    <option value="18%">18%</option>
+                </select>
+            </div>
+            <div class="campo-formulario">
+                <label for="totalFactura"><i class="fas fa-cash-register"></i> Total de Factura (LPS) *</label>
+                <input type="number" id="totalFactura" name="totalFactura" min="0" step="0.01" required class="form-control">
+            </div>
+            
+        </div>
+
+        <!-- Tabla de productos del pedido -->
+        <!-- Formulario para agregar productos al pedido -->
+        
+
+        <div class="acciones-formulario mt-4">
+            <button type="submit" class="btn btn-guardar">Guardar Pedido</button>
+            <a href="/inventario" class="btn btn-cancelar">Cancelar</a>
+        </div>
+    </form>
+
+     <h5>Agregar al Pedido</h5>
+
+        <form id="agregarProductoPedido" class="d-flex flex-wrap gap-2 mb-3" onsubmit="return agregarProductoAlPedido();">
+             <label for="totalFactura"><i class="fas fa-barcode"></i> Código del Producto *</label>
+                <input type="text" id="codigoProducto" name="codigoProducto" placeholder="Código de producto" class="form-control" required style="max-width:160px;">
+                    <label for="totalFactura"><i class="fas fa-cubes"></i> Cantidad *</label>
+                    <input type="number" id="cantidadProducto" name="cantidadProducto" placeholder="Cantidad" class="form-control" min="1" required style="max-width:120px;">
+                    <label for="totalFactura"><i class="fas fa-money-bill"></i> Costo Unitario *</label>
+                     <input type="number" id="costoUnitario" name="costoUnitario" placeholder="Costo unitario" class="form-control" min="0" step="0.01" required style="max-width:140px;">
+                     <button type="submit" class="btn btn-primary">Agregar Producto</button>
+                    <button type="button" class="btn btn-secondary" onclick="mostrarCrearProducto()">Crear Producto</button>
+         </form>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                            <th>Subtotal</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProductosPedido">
+                        <!-- Aquí se agregan los productos dinámicamente con JS -->
+                         
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-3" id="resumenTotalesPedido">
+                    <div><strong>Subtotal productos:</strong> LPS <span id="subtotalProductos">0.00</span></div>
+                            <div><strong>Total productos:</strong> LPS <span id="totalProductos">0.00</span></div>
+                    <div id="diferenciaTotal" style="color:#e74c3c; font-weight:bold;"></div>
+                </div>
+
+
+            <div class="mt-2">
+                <span id="diferenciaTotal" style="color:#e74c3c; font-weight:bold;"></span>
+            </div>
+        </div>
+
+</div>
+
+<!-- Modal para crear producto nuevo -->
+<div id="modalCrearProducto" style="display:none;">
+    <iframe src="/inventario/nuevo" style="width:100%;height:600px;border:none;"></iframe>
+    <button onclick="cerrarCrearProducto()" class="btn btn-cancelar mt-2">Cerrar</button>
+</div>
+
+<%- include('../parciales/pie') %>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const minimizedBar = document.getElementById('minimized-windows-bar');
+    let windowStack = [];
+
+    document.querySelectorAll('.window-controls').forEach(function(ctrls) {
+        const container = ctrls.closest('.container, .container-formulario-producto');
+        const minimize = ctrls.querySelector('.window-minimize');
+        const maximize = ctrls.querySelector('.window-maximize');
+        const close = ctrls.querySelector('.window-close');
+        let maximized = false;
+
+        // Guardar en stack al abrir
+        windowStack.push(container);
+
+        if (minimize) {
+            minimize.onclick = () => {
+                container.classList.add('window-minimized');
+                // Crear botón en la barra de minimizados
+                let btn = document.createElement('button');
+                btn.className = 'window-btn window-restore';
+                btn.innerHTML = '<i class="fas fa-window-restore"></i> ' + (container.querySelector('.titulo-formulario')?.textContent || 'Ventana');
+                btn.onclick = () => {
+                    container.classList.remove('window-minimized');
+                    btn.remove();
+                };
+                minimizedBar.appendChild(btn);
+
+                // Mostrar el módulo anterior si existe
+                if (windowStack.length > 1) {
+                    let prev = windowStack[windowStack.length - 2];
+                    prev.classList.remove('window-minimized');
+                }
+            };
+        }
+        if (maximize) {
+            maximize.onclick = () => {
+                maximized = !maximized;
+                container.classList.toggle('window-maximized', maximized);
+            };
+        }
+        if (close) {
+            close.onclick = () => {
+                container.style.display = 'none';
+                // Mostrar el módulo anterior si existe
+                windowStack.pop();
+                if (windowStack.length > 0) {
+                    let prev = windowStack[windowStack.length - 1];
+                    prev.classList.remove('window-minimized');
+                    prev.style.display = '';
+                }
+            };
+        }
+    });
+});
+</script>
