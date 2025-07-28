@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario de Productos</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tus estilos personalizados -->
+    <link rel="stylesheet" href="/CSS/estilo.css">
+</head>
+<body>
+<%- include('../parciales/encabezado', { rutaActual: '/inventario', usuario: usuario }) %>
+<div class="container my-4">
+    <h2 class="mb-4 text-center">Inventario de Productos</h2>
+
+    <!-- Submenú de inventario -->
+    <div class="submenu-inventario d-flex align-items-center mb-4 gap-2">
+    <a href="#" id="btn-nuevo-producto" class="submenu-item" title="Nuevo Producto">
+        <i class="fas fa-plus-circle"></i>
+    </a>
+    <button id="btn-editar-producto" class="submenu-item" title="Editar Producto">
+        <i class="fas fa-edit"></i>
+    </button>
+    <button id="btnEliminarProducto" class="submenu-item" title="Eliminar Producto">
+        <i class="fas fa-trash-alt"></i>
+    </button>
+
+    <!-- Separador visual -->
+    <span style="display:inline-block; width:32px;"></span>
+
+    <!-- Nuevo grupo de botones -->
+    <a href="/inventario/nuevo-pedido" class="submenu-item" title="Nuevo Pedido">
+        <i class="fas fa-file-invoice"></i>
+    </a>
+    <button id="btn-ingreso-productos" class="submenu-item" title="Ingreso de productos">
+        <i class="fas fa-arrow-down"></i>
+    </button>
+    <button id="btn-salida-productos" class="submenu-item" title="Salida de productos">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    </div>
+
+    <div class="d-flex justify-content-end align-items-center mb-3">
+        <input
+            type="text"
+            id="busqueda-inventario"
+            class="form-control"
+            placeholder="Buscar por código, descripción o línea"
+            style="min-width: 260px;"
+        >
+    </div>
+    <% if (productos.length === 0) { %>
+        <p>No hay productos registrados.</p>
+    <% } else { %>
+        <table class="table table-inventario table-striped table-hover table-bordered mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Línea</th>
+                    <th>Cantidad</th>
+                    <th>Costo U.</th>
+                    <th>ISV</th>
+                    <th>Precio Público</th>    
+                    <th>Precio Final</th>                      
+                    <th>Ultima Venta</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                <% productos.forEach(producto => { %>
+                    <tr class="fila-producto" data-codigo="<%= producto.COD_PROD %>">
+                        <td><%= producto.COD_PROD %></td>
+                        <td><%= producto.DESCR %></td>
+                        <td><%= producto.LINEA_DESCR %></td>
+                        <td><%= producto.STOCK %></td>
+                        <td>LPS <%= producto.COST_PROM %></td>
+                        <td>
+                            <%= (typeof producto.TAX_PERCENT !== 'undefined' && producto.TAX_PERCENT !== null) ? producto.TAX_PERCENT + '%' : '0%' %>
+                        </td>
+                        <td>
+                         LPS <%= (producto.PRICE_PUB !== null && producto.PRICE_PUB !== undefined) ? Number(producto.PRICE_PUB).toFixed(2) : '0.00' %>
+                        </td>
+                        <td>
+                         LPS <%= producto.PRECIO_FINAL !== null && producto.PRECIO_FINAL !== undefined ? Number(producto.PRECIO_FINAL).toFixed(2) : '0.00' %>
+                        </td>                            
+                        <td><%= producto.DATE_LSALE ? producto.DATE_LSALE.toISOString().slice(0,10) : '' %></td>
+                        
+                    </tr>
+                   
+                <% }) %>
+            </tbody>
+        </table>     
+        <% if (totalPages > 1) { %>
+        <nav id="paginacion-inventario" class="paginacion-inventario" aria-label="Paginación de productos">
+            <ul class="pagination justify-content-center mt-3 mb-0">
+                <% 
+                    let start = Math.max(1, page - 2);
+                    let end = Math.min(totalPages, page + 2);
+
+                    if (start > 1) { %>
+                        <li class="page-item"><a class="page-link" href="?page=1">1</a></li>
+                        <% if (start > 2) { %>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <% }
+                    }
+                    for (let i = start; i <= end; i++) { %>
+                        <li class="page-item <%= i === page ? 'active' : '' %>">
+                            <a class="page-link" href="?page=<%= i %>"><%= i %></a>
+                        </li>
+                <% }
+                    if (end < totalPages) { 
+                        if (end < totalPages - 1) { %>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <% } %>
+                        <li class="page-item"><a class="page-link" href="?page=<%= totalPages %>"><%= totalPages %></a></li>
+                <% } %>
+            </ul>
+        </nav>
+        <% } %>
+    <% } %>
+</div>  
+<%- include('../parciales/pie') %>
+
+<div id="overlay-nuevo-producto"></div>
+<div id="overlay-editar-producto"></div>
+
+<!-- Modal de Ingreso de Productos -->
+<div class="modal fade" id="modalIngresoProductos" tabindex="-1" aria-labelledby="modalIngresoProductosLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="background:#181818; color:#fff;">
+      <div class="modal-header draggable-handler" style="cursor:move;">
+        <h5 class="modal-title" id="modalIngresoProductosLabel">
+          <i class="fas fa-arrow-down"></i> Ingreso de productos
+        </h5>
+        <div class="window-controls ms-auto">
+            <button type="button" class="btn btn-sm btn-light window-minimize" title="Minimizar">
+                <i class="fas fa-window-minimize"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-light window-close" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <!-- Formulario de búsqueda y cantidad -->
+        <form id="formIngresoProducto" class="row gx-1 gy-0 align-items-end">
+          <div class="col-md-6">
+            <label for="busquedaIngreso" class="form-label">Buscar producto</label>
+            <input type="text" class="form-control" id="busquedaIngreso" autocomplete="off" placeholder="Buscar por código o descripción">
+            <div id="dropdownBusquedaIngreso" class="dropdown-menu w-100" style="max-height:200px; overflow-y:auto;"></div>
+          </div>
+          <div class="col-md-3">
+            <label for="cantidadIngreso" class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="cantidadIngreso" min="1" value="1">
+          </div>
+          <div class="col-md-2">
+            <label for="registroIngreso" class="form-label">Registro</label>
+            <input type="text" class="form-control" id="registroIngreso" placeholder="(Opcional)">
+          </div>
+          <div class="col-md-1 d-flex align-items-end">
+            <button type="button" id="btnAgregarIngreso" class="btn btn-success" title="Agregar">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </form>
+        <div class="table-responsive mt-2" style="max-height: 320px; overflow-y: auto;">
+            <h5 class="text-center mb-2">Productos a ingresar</h5>
+            <table class="table table-inventario mb-0" id="tablaIngresoProductos">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Cantidad</th>
+                    <th>Registro</th>
+                    <th>Fecha de creación</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Aquí se agregan los productos a ingresar -->
+                </tbody>
+              </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarIngresos">Guardar Ingresos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="minimized-ingreso-productos" style="display:none; position:fixed; bottom:24px; left:24px; z-index:9999;">
+    <button class="window-restore btn btn-primary btn-sm">
+        <i class="fas fa-arrow-down"></i> Ingreso de productos
+    </button>
+</div>
+
+<!-- Modal de Nuevo Producto -->
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('busqueda-inventario');
+    const tbody = document.querySelector('.table-inventario tbody');
+    const paginacion = document.getElementById('paginacion-inventario');
+    let timeout = null;
+
+    input.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            const valor = input.value.trim();
+            if (valor.length === 0) {
+                // Si el campo está vacío, recarga la página para mostrar el inventario normal
+                window.location.href = '/inventario';
+                return;
+            }
+            fetch(`/inventario/buscar?q=${encodeURIComponent(valor)}`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Respuesta AJAX:', data); // <-- Agrega esto
+                    tbody.innerHTML = ''; // <-- AQUÍ ESTÁ BIEN
+                    if (paginacion) paginacion.style.display = 'none';
+                    if (data.productos.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="8" class="text-center">No se encontraron productos.</td></tr>`;
+                    } else {
+                        data.productos.forEach(producto => {
+                            tbody.innerHTML += `
+                                <tr class="fila-producto" data-codigo="${producto.COD_PROD}">
+                                    <td>${producto.COD_PROD}</td>
+                                    <td>${producto.DESCR}</td>
+                                    <td>${producto.LINEA_DESCR}</td>
+                                    <td>${producto.STOCK}</td>
+                                    <td>LPS ${producto.COST_PROM}</td>
+                                    <td>${(typeof producto.TAX_PERCENT !== 'undefined' && producto.TAX_PERCENT !== null) ? producto.TAX_PERCENT + '%' : '0%'}</td>
+                                    <td>LPS ${(producto.PRICE_PUB !== null && producto.PRICE_PUB !== undefined) ? Number(producto.PRICE_PUB).toFixed(2) : '0.00'}</td>
+                                    <td>LPS ${(producto.PRECIO_FINAL !== null && producto.PRECIO_FINAL !== undefined) ? Number(producto.PRECIO_FINAL).toFixed(2) : '0.00'}</td>
+                                    <td>${producto.DATE_LSALE ? new Date(producto.DATE_LSALE).toISOString().slice(0,10) : ''}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    // Vuelve a agregar el listener de selección a las filas nuevas
+                    tbody.querySelectorAll('.fila-producto').forEach(fila => {
+                        fila.addEventListener('click', function() {
+                            tbody.querySelectorAll('.fila-producto').forEach(f => f.classList.remove('selected'));
+                            this.classList.add('selected');
+                            productoSeleccionado = this.getAttribute('data-codigo');
+                        });
+                    });
+                });
+        }, 300);
+    });
+});
+
+document.getElementById('btn-nuevo-producto').addEventListener('click', function(e) {
+    e.preventDefault();
+    fetch('/inventario/nuevo')
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('overlay-nuevo-producto').innerHTML = html;
+
+            // Inicializa controles del modal después de insertarlo
+            const container = document.getElementById('nuevo-producto-container');
+            const handler = container.querySelector('.draggable-handler');
+            const minimizeBtn = container.querySelector('.window-minimize');
+            const closeBtn = container.querySelector('.window-close');
+            const minimizedBar = document.getElementById('minimized-nuevo-producto');
+            const restoreBtn = minimizedBar.querySelector('.window-restore');
+
+            // Drag & Drop
+            let isDragging = false, offsetX = 0, offsetY = 0;
+            handler.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                const rect = container.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                container.style.transition = 'none';
+                document.body.style.userSelect = 'none';
+            });
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    container.style.left = (e.clientX - offsetX) + 'px';
+                    container.style.top = (e.clientY - offsetY) + 'px';
+                    container.style.transform = 'none';
+                }
+            });
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            });
+
+            // Minimizar
+            minimizeBtn.onclick = function() {
+                container.style.display = 'none';
+                minimizedBar.style.display = '';
+            };
+            // Restaurar
+            restoreBtn.onclick = function() {
+                container.style.display = '';
+                minimizedBar.style.display = 'none';
+            };
+            // Cerrar
+            closeBtn.onclick = function() {
+                container.remove();
+                minimizedBar.remove();
+            };
+
+            // Cargar y ejecutar nuevo_producto.js después de insertar el modal
+            const script = document.createElement('script');
+            script.src = '/JS/nuevo_producto.js';
+            document.body.appendChild(script);
+        });
+});
+
+document.getElementById('btn-editar-producto').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (!productoSeleccionado) {
+        alert('Seleccione un producto de la tabla para editar.');
+        return;
+    }
+    fetch(`/inventario/editar/${productoSeleccionado}?partial=1`)
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('overlay-editar-producto').innerHTML = html;
+
+            // Script para controlar minimizar/restaurar/cerrar y draggable
+            const container = document.getElementById('editar-producto-container');
+            const minimizeBtn = container.querySelector('.window-minimize');
+            const closeBtn = container.querySelector('.window-close');
+            const minimizedBar = document.getElementById('minimized-editar-producto');
+            const restoreBtn = minimizedBar.querySelector('.window-restore');
+
+            minimizeBtn.onclick = function() {
+                container.style.display = 'none';
+                minimizedBar.style.display = '';
+            };
+            restoreBtn.onclick = function() {
+                container.style.display = '';
+                minimizedBar.style.display = 'none';
+            };
+            closeBtn.onclick = function() {
+                container.remove();
+                minimizedBar.remove();
+            };
+
+            // Drag & Drop para la ventana flotante
+            const handler = container.querySelector('.draggable-handler');
+            let isDragging = false, offsetX = 0, offsetY = 0;
+
+            handler.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                const rect = container.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                container.style.transition = 'none';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    container.style.left = (e.clientX - offsetX) + 'px';
+                    container.style.top = (e.clientY - offsetY) + 'px';
+                    container.style.transform = 'none';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            });
+        });
+});
+
+document.getElementById('btnEliminarProducto').addEventListener('click', function() {
+    if (!productoSeleccionado) {
+        const modal = new bootstrap.Modal(document.getElementById('modalSeleccionaProducto'));
+        modal.show();
+        return;
+    }
+    // Mostrar modal de confirmación
+    const modalConfirmar = new bootstrap.Modal(document.getElementById('modalConfirmarEliminar'));
+    modalConfirmar.show();
+
+    // Al hacer click en "Sí", eliminar el producto
+    const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+    // Remover listeners anteriores para evitar duplicados
+    btnConfirmar.replaceWith(btnConfirmar.cloneNode(true));
+    const btnConfirmarNuevo = document.getElementById('btnConfirmarEliminar');
+    btnConfirmarNuevo.addEventListener('click', function() {
+        fetch(`/inventario/eliminar/${productoSeleccionado}`, { method: 'POST' })
+        .then(res => {
+            if (res.ok) location.reload();
+            else alert('Error al eliminar el producto');
+        });
+        modalConfirmar.hide();
+    });
+});
+
+let productoSeleccionado = null;
+document.querySelectorAll('.fila-producto').forEach(fila => {
+    fila.addEventListener('click', function() {
+        document.querySelectorAll('.fila-producto').forEach(f => f.classList.remove('selected'));
+        this.classList.add('selected');
+        productoSeleccionado = this.getAttribute('data-codigo');
+    });
+});
+
+// Mostrar modal de ingreso de productos
+document.getElementById('btn-ingreso-productos').addEventListener('click', function() {
+    const modal = new bootstrap.Modal(document.getElementById('modalIngresoProductos'), { backdrop: false });
+    modal.show();
+});
+
+// Autocompletar búsqueda
+const inputBusqueda = document.getElementById('busquedaIngreso');
+const dropdown = document.getElementById('dropdownBusquedaIngreso');
+
+inputBusqueda.addEventListener('input', function() {
+    const valor = this.value.trim();
+    dropdown.innerHTML = '';
+    if (valor.length === 0) {
+        dropdown.classList.remove('show');
+        return;
+    }
+    fetch(`/inventario/buscar-productos?q=${encodeURIComponent(valor)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.productos || data.productos.length === 0) {
+                dropdown.innerHTML = `<button class="dropdown-item disabled">No hay resultados</button>`;
+                dropdown.classList.add('show');
+                return;
+            }
+            data.productos.forEach(prod => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'dropdown-item';
+                item.textContent = `${prod.COD_PROD} - ${prod.DESCR}`;
+                item.onclick = () => {
+                    inputBusqueda.value = `${prod.COD_PROD} - ${prod.DESCR}`;
+                    inputBusqueda.dataset.codigo = prod.COD_PROD;
+                    dropdown.classList.remove('show');
+                    document.getElementById('cantidadIngreso').focus();
+                };
+                dropdown.appendChild(item);
+            });
+            dropdown.classList.add('show');
+        });
+});
+
+// Si no existe el producto
+function mostrarModalNoExiste() {
+    // NO cierres el modal de ingreso aquí
+    const modal = new bootstrap.Modal(document.getElementById('modalProductoNoExiste'), { backdrop: false });
+    modal.show();
+    document.getElementById('btnCrearProductoSi').onclick = function() {
+        modal.hide();
+        // Abrir la ventana emergente de "Nuevo Producto"
+        document.getElementById('btn-nuevo-producto').click();
+        // El modal de ingreso de productos queda abierto detrás
+    };
+}
+
+// Agregar producto a la tabla de ingresos
+document.getElementById('btnAgregarIngreso').addEventListener('click', function() {
+    const codigo = inputBusqueda.dataset.codigo;
+    const descripcion = inputBusqueda.value.split(' - ')[1] || '';
+    const cantidad = document.getElementById('cantidadIngreso').value;
+    const registro = document.getElementById('registroIngreso').value || generarRegistro();
+    const fecha = new Date().toLocaleDateString();
+
+    if (!codigo) {
+        mostrarModalNoExiste();
+        return;
+    }
+
+    // Agrega la fila a la tabla
+    const tbody = document.getElementById('tablaIngresoProductos').querySelector('tbody');
+    const fila = document.createElement('tr');
+    fila.innerHTML = `
+        <td>${codigo}</td>
+        <td>${descripcion}</td>
+        <td>${cantidad}</td>
+        <td>${registro}</td>
+        <td>${fecha}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+    `;
+    tbody.appendChild(fila);
+
+    // Limpia campos
+    inputBusqueda.value = '';
+    inputBusqueda.dataset.codigo = '';
+    document.getElementById('cantidadIngreso').value = 1;
+    document.getElementById('registroIngreso').value = '';
+});
+
+// Generar registro automático
+function generarRegistro() {
+    return 'REG-' + Date.now();
+}
+
+// Drag & Drop y controles para el modal de ingreso de productos
+document.addEventListener('DOMContentLoaded', function() {
+    const modalIngreso = document.getElementById('modalIngresoProductos');
+    const container = modalIngreso.querySelector('.modal-content');
+    const minimizeBtn = modalIngreso.querySelector('.window-minimize');
+    const closeBtn = modalIngreso.querySelector('.window-close');
+    const minimizedBar = document.getElementById('minimized-ingreso-productos');
+    const restoreBtn = minimizedBar.querySelector('.window-restore');
+    const handler = modalIngreso.querySelector('.draggable-handler');
+
+    // Drag & Drop
+    let isDragging = false, offsetX = 0, offsetY = 0;
+    handler.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        const rect = modalIngreso.querySelector('.modal-dialog').getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        modalIngreso.querySelector('.modal-dialog').style.transition = 'none';
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            const dialog = modalIngreso.querySelector('.modal-dialog');
+            dialog.style.position = 'fixed';
+            dialog.style.left = (e.clientX - offsetX) + 'px';
+            dialog.style.top = (e.clientY - offsetY) + 'px';
+            dialog.style.margin = '0';
+            dialog.style.transform = 'none';
+        }
+    });
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+        document.body.style.userSelect = '';
+    });
+
+    // Minimizar
+    minimizeBtn.onclick = function() {
+        const modalInstance = bootstrap.Modal.getInstance(modalIngreso);
+        if (modalInstance) modalInstance.hide();
+        minimizedBar.style.display = '';
+    };
+    // Restaurar
+    restoreBtn.onclick = function() {
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalIngreso);
+    modalInstance.show();
+    minimizedBar.style.display = 'none';
+    };
+    // Cerrar
+    closeBtn.onclick = function() {
+        const modalInstance = bootstrap.Modal.getInstance(modalIngreso);
+        if (modalInstance) modalInstance.hide();
+        minimizedBar.style.display = 'none';
+        // Opcional: limpia el formulario si quieres
+    };
+});
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAbrir = document.getElementById('btn-nuevo-producto');
+    const modal = document.getElementById('modalNuevoProducto');
+
+    if (!btnAbrir || !modal) return; // Protección
+
+    btnAbrir.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Si usas Bootstrap modal:
+        const modalInstance = new bootstrap.Modal(modal, {backdrop: false});
+        modalInstance.show();
+        // Si no usas Bootstrap modal, usa:
+        // modal.style.display = 'block';
+    });
+});
+
+// Selección de fila en la tabla de resultados
+document.querySelectorAll('.tabla-inventario tbody tr').forEach(tr => {
+    tr.addEventListener('click', function() {
+        // Quitar selección de todas las filas
+        document.querySelectorAll('.tabla-inventario tbody tr').forEach(fila => {
+            fila.classList.remove('selected');
+        });
+        // Seleccionar la fila actual
+        tr.classList.add('selected');
+    });
+});
+</script>
+
+<!-- Modal de selección de producto -->
+<div class="modal fade" id="modalSeleccionaProducto" tabindex="-1" aria-labelledby="modalSeleccionaProductoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalSeleccionaProductoLabel">Seleccionar Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Por favor, selecciona un producto de la tabla antes de eliminar.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:#222; color:#fff;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalConfirmarEliminarLabel">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> Oyoy!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estas seguro que deseas eliminar el producto?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Sí</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de producto no encontrado -->
+<div class="modal fade" id="modalProductoNoExiste" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#222; color:#fff;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-warning"></i> Oyoy!</h5>
+      </div>
+      <div class="modal-body">
+        No existe este producto en el inventario.<br>
+        ¿Deseas crear el producto?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="btnCrearProductoSi">Sí</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Bootstrap JS Bundle (incluye Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Tus scripts personalizados -->
+</body>
+
+<script src="/JS/nuevo_producto.js"></script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnGuardarIngresos = document.getElementById('btnGuardarIngresos');
+    const tbody = document.getElementById('tablaIngresoProductos').querySelector('tbody');
+
+    if (btnGuardarIngresos && tbody) {
+        btnGuardarIngresos.addEventListener('click', function() {
+            const ingresos = [];
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const tds = tr.querySelectorAll('td');
+                const cantidad = parseInt(tds[2]?.textContent, 10); // Índice 2 = columna Cantidad
+                if (cantidad > 0) {
+                    ingresos.push({
+                        codigo: tds[0].textContent,
+                        cantidad: cantidad
+                    });
+                }
+            });
+            console.log('Ingresos a enviar:', ingresos); // Depuración
+            if (ingresos.length === 0) {
+                alert('No hay ingresos para guardar.');
+                return;
+            }
+            fetch('/inventario/guardar-ingresos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingresos })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log('Respuesta del backend:', data);
+                if (data.ok) {
+                    alert('Ingresos guardados correctamente');
+                    // Opcional: recargar inventario aquí
+                } else {
+                    alert('Error al guardar: ' + (data.error || ''));
+                }
+            });
+        });
+    }
+});
+</script>
+
+</html>

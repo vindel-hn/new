@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cosmern POS - <%= typeof title !== 'undefined' ? title : 'Panel' %></title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Bootstrap 5 CSS (opcional) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="/CSS/estilo.css">
+    <!-- Favicon -->
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <!-- Encabezado principal -->
+<header class="header-cosmmern">
+    <div class="container">
+        <div class="logo">
+            <img src="/img/logo-cosmern.png" alt="Cosmern" style="height:48px; max-width:220px; object-fit:contain;">
+        </div>
+        <nav class="nav">
+            <a href="/"><i class="fas fa-home"></i> Punto de Venta</a>
+            <a href="/inventario"><i class="fas fa-boxes"></i> Inventario</a>
+            <a href="/pedidos"><i class="fas fa-file-alt"></i> Pedidos</a>
+        </nav>
+        <div class="user-actions">
+            <i class="fas fa-user-circle"></i>
+            <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+        </div>
+    </div>
+</header>
+
+    <main class="container my-4">
+        <!-- El contenido específico de cada página se insertará aquí -->

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmern POS - Panel</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+
+<div id="editar-producto-container" class="container-formulario-producto window-float"
+     style="top: 5px; left: 5px; position: fixed; z-index: 1050; min-width: 520px;">
+    <div class="window-header draggable-handler d-flex align-items-center" style="cursor:move;">
+    
+    <div class="window-controls ms-auto">
+        <button type="button" class="btn btn-sm btn-light window-minimize" title="Minimizar">
+            <i class="fas fa-window-minimize"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-light window-close" title="Cerrar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+    <h2 class="titulo-formulario mb-4 draggable-handler" style="cursor: move;">
+        <i class="fas fa-edit"></i> Editar Producto
+    </h2>
+    <form id="form-editar-producto" method="POST" action="/inventario/editar/<%= producto.COD_PROD %>" class="formulario-producto">
+        <div class="grupo-campos">
+            <div class="row" style="width:100%;">
+                <!-- Código (readonly) -->
+                <div class="col-md-2 campo-formulario">
+                    <label for="codigo"><i class="fas fa-barcode"></i> Código *</label>
+                    <input type="text" id="codigo" name="codigo" required class="form-control" value="<%= producto.COD_PROD %>" readonly>
+                </div>
+                <!-- Línea -->
+                <div class="col-md-3 campo-formulario">
+                     <label for="cantidad"><i class="fas fa-boxes"></i> Cantidad *</label>
+                <input type="number" id="cantidad" name="cantidad" min="0" required class="form-control" value="<%= producto.STOCK %>" readonly>
+           
+                    
+                </div>
+                <!-- ISV ocupa el resto de la fila -->
+                <div class="col-md-7 campo-formulario">
+                    <label for="date_lpurc"><i class="fas fa-calendar-alt"></i> Última Compra</label>
+                <input type="text" id="date_lpurc" class="form-control" value="<%= producto.DATE_LPURC ? producto.DATE_LPURC.toISOString().slice(0,10) : '' %>" readonly>
+                </div>
+            </div>
+        </div>
+        <div class="grupo-campos">
+            <div class="row" style="width:100%; margin-top: 10px;">
+                <!-- Nombre en una nueva fila -->
+                <div class="col-12 campo-formulario">
+                    <label for="nombre"><i class="fas fa-tag"></i> Nombre *</label>
+                    <input type="text" id="nombre" name="nombre" maxlength="140" required class="form-control" value="<%= producto.DESCR %>">
+                </div>
+            </div>
+        </div>
+        <div class="grupo-campos">
+            <!-- Cantidad -->
+            <div class="campo-formulario">
+                <label for="isv"><i class="fas fa-percentage"></i> ISV *</label>
+                    <select id="isv" name="isv" required class="form-control">
+                        <option value="">Seleccione...</option>
+                        <% taxList.forEach(tax => { %>
+                            <option value="<%= tax.COD_TAX %>" <%= producto.COD_TAX === tax.COD_TAX ? 'selected' : '' %>><%= tax.DESCR %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            <!-- Costo Unitario -->
+            <div class="campo-formulario">
+                <label for="costo_unitario"><i class="fas fa-dollar-sign"></i> Costo U. *</label>
+                <input type="number" id="costo_unitario" name="costo_unitario" min="0" step="0.01" required class="form-control" value="<%= producto.COST_PROM %>">
+            </div>
+            <!-- Precio Público -->
+            <div class="campo-formulario">
+                <label for="precio"><i class="fas fa-money-bill-wave"></i> Precio Público *</label>
+                <input type="number" id="precio" name="precio" min="0" step="0.01" required class="form-control" value="<%= producto.PRICE_PUB %>">
+            </div>
+            <!-- Precio Final (solo lectura) -->
+            <div class="campo-formulario">
+                <label for="precio_final"><i class="fas fa-money-bill-wave"></i> Precio Final</label>
+                <input type="text" id="precio_final" class="form-control" value="<%= producto.PRECIO_FINAL !== null && producto.PRECIO_FINAL !== undefined ? Number(producto.PRECIO_FINAL).toFixed(2) : '0.00' %>" readonly>
+            </div>
+        </div>
+        <div class="grupo-campos">
+            <!-- Margen de producto (solo lectura) -->
+            <div class="campo-formulario">
+                <label for="prof_mrg"><i class="fas fa-percent"></i> Margen (%)</label>
+                <input type="text" id="prof_mrg" class="form-control" value="<%= producto.PROF_MRG %>" readonly>
+            </div>
+            <!-- Fecha última compra (solo lectura) -->
+            <div class="campo-formulario">
+                    <label for="linea"><i class="fas fa-layer-group"></i> Línea *</label>
+                    <select id="linea" name="linea" required class="form-control">
+                        <option value="">Seleccione...</option>
+                        <% lineList.forEach(linea => { %>
+                            <option value="<%= linea.COD_LINE %>" <%= producto.COD_LINE === linea.COD_LINE ? 'selected' : '' %>><%= linea.DESCR %></option>
+                        <% }) %>
+                    </select>
+
+                    
+            </div>
+        </div>
+        <div class="d-flex justify-content-end mt-4">
+            <button type="submit" class="btn btn-nuevo-producto">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </form>
+</div>
+<!-- Minimizado: botón flotante inferior izquierda -->
+<div id="minimized-editar-producto" style="display:none; position:fixed; bottom:24px; left:24px; z-index:9999;">
+    <button class="window-btn window-restore" title="Restaurar Edición">
+        <i class="fas fa-window-restore"></i> Editar Producto
+    </button>
+</div>
+
+<!-- taxMap generado por EJS para uso en JS -->
+<script>
+    const taxMap = <%- JSON.stringify(Object.fromEntries(taxList.map(tax => [tax.COD_TAX, tax.RATE]))) %>;
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Script para actualizar Precio Final automáticamente
+    const precioInput = document.getElementById('precio');
+    const isvSelect = document.getElementById('isv');
+    const precioFinalInput = document.getElementById('precio_final');
+    function actualizarPrecioFinal() {
+        const precio = parseFloat(precioInput.value) || 0;
+        const isv = taxMap[isvSelect.value] || 0;
+        const precioFinal = precio + (precio * isv / 100);
+        precioFinalInput.value = precioFinal.toFixed(2);
+    }
+    precioInput.addEventListener('input', actualizarPrecioFinal);
+    isvSelect.addEventListener('change', actualizarPrecioFinal);
+    actualizarPrecioFinal();
+});
+</script>
